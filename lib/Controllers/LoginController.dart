@@ -47,27 +47,29 @@ class LoginController extends GetxController {
 
   void login() async {
     try {
+      // Create a User object with email and password
       User user = User(email: email.text, password: password.text);
 
+      // Convert the User object to JSON
       String requestBody = user.toJson();
 
-      var post = await Dioclient().getInstance().post(
+      // Send a POST request to the login endpoint
+      var response = await Dioclient().getInstance().post(
         '/login',
         data: requestBody,
       );
 
-      if (post.statusCode == 200) {
-        if (post.data != null && post.data['success'] == true) {
-          // Save token
-          prefs.setString('token', post.data['token']);
-          int userId = post.data['user']['id']; // Get it as an integer
-          String userName = post.data['user']['name']; // Get the user's name
-          String userEmail = post.data['user']['email']; // Get the user's email
+      // Check if the response is successful
+      if (response.statusCode == 200) {
+        if (response.data != null &&
+            response.data['message'] == 'Login successful') {
+          // Save token and user details in SharedPreferences
+          prefs.setString('token', response.data['token']);
+          prefs.setInt('user_id', response.data['user']['id']);
+          prefs.setString('user_name', response.data['user']['name']);
+          prefs.setString('user_email', response.data['user']['email']);
 
-          prefs.setInt('user_id', userId); // Save user ID as an integer
-          prefs.setString('user_name', userName); // Save user name as a string
-          prefs.setString('user_email', userEmail); // Save user email as
-
+          // Show success dialog
           ShowSuccessDialog(
             Get.context!,
             "Success",
@@ -75,11 +77,14 @@ class LoginController extends GetxController {
             () {},
           );
 
+          // Navigate to the main page
           Get.offAllNamed('/mainpage');
         } else {
+          // Show failure dialog if login fails
           ShowSuccessDialog(Get.context!, "Failed", "User Login Failed", () {});
         }
       } else {
+        // Show error dialog for invalid credentials
         ShowSuccessDialog(
           Get.context!,
           "Failed",
@@ -88,10 +93,12 @@ class LoginController extends GetxController {
         );
       }
     } catch (e) {
+      // Handle exceptions and show error dialog
+      print("Error during login: $e");
       ShowSuccessDialog(
         Get.context!,
         "Error",
-        "Wrong email or password",
+        "Something went wrong. Please try again.",
         () {},
       );
     }

@@ -24,5 +24,9 @@ class User {
     };
   }
 
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(name: json['name'], email: json['email']);
+  }
+
   String toJson() => json.encode(toMap());
 }
