@@ -23,6 +23,9 @@ class Mainpage extends GetView<MainpageController> {
               return ListTile(
                 title: Text(user.name ?? "No Name"),
                 subtitle: Text(user.email ?? "No Email"),
+                onTap: () {
+                  Get.toNamed('/chat/${user.id}');
+                },
               );
             },
           );

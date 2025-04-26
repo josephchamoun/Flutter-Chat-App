@@ -1,7 +1,9 @@
+import 'package:chatapp/Bindings/ChatBinding.dart';
 import 'package:chatapp/Bindings/LoginBinding.dart';
 import 'package:chatapp/Bindings/MainpageBinding.dart';
 import 'package:chatapp/Bindings/RegistrationBinding.dart';
 import 'package:chatapp/Routes/AppRoute.dart';
+import 'package:chatapp/Views/Chat.dart';
 import 'package:chatapp/Views/Login.dart';
 import 'package:chatapp/Views/Mainpage.dart';
 import 'package:chatapp/Views/Registration.dart';
@@ -21,5 +23,7 @@ class AppPage {
       page: () => Mainpage(),
       binding: MainpageBinding(),
     ),
+
+    GetPage(name: '/chat/:id', page: () => Chat(), binding: ChatBinding()),
   ];
 }
