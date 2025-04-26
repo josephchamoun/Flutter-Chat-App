@@ -17,11 +17,15 @@ class MainpageController extends GetxController {
     prefs = await SharedPreferences.getInstance();
     if (prefs.getString('token') == null) {
       Get.offAllNamed('/login');
+    } else {
+      authUserId = prefs.getInt('user_id');
+      listofUsers(); // Fetch users when the controller is initialized
     }
   }
 
   var users = <User>[].obs; // Observable list of users
   var isLoading = false.obs; // Observable loading state
+  int? authUserId;
 
   void listofUsers() async {
     isLoading.value = true; // Set loading to true
@@ -39,10 +43,13 @@ class MainpageController extends GetxController {
 
       if (response.statusCode == 200) {
         if (response.data != null && response.data['users'] != null) {
-          users.value =
+          var allUsers =
               (response.data['users'] as List)
                   .map((user) => User.fromJson(user))
                   .toList();
+
+          users.value =
+              allUsers.where((user) => user.id != authUserId).toList();
           print("Users fetched: ${users.length}"); // Debug log for users
         } else {
           users.clear();

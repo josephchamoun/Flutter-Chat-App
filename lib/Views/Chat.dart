@@ -8,6 +8,10 @@ class Chat extends GetView<ChatController> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.GetorCreateConversations();
+    });
+
     return Scaffold(appBar: AppBar(title: Text("Chat with user $receiverId")));
   }
 }
