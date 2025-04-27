@@ -1,42 +1,42 @@
 import 'package:chatapp/Core/Network/DioClient.dart';
 import 'package:chatapp/Core/ShowSuccessDialog.dart';
 import 'package:chatapp/Models/Conversation.dart';
+import 'package:chatapp/Models/Message.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
-import 'package:get/get_state_manager/src/simple/get_controllers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ChatController extends GetxController {
   late SharedPreferences prefs;
   int chatUserId = int.tryParse(Get.parameters['id'] ?? '') ?? 0;
+  int? conversationId;
+
+  var messages = <Message>[].obs;
+  var isLoading = true.obs; // Start with loading true
 
   @override
   void onInit() {
     super.onInit();
-    print("[ChatController] onInit called ✅");
-    _initialize();
+    _loadPrefs();
   }
 
-  void _initialize() async {
-    print("[ChatController] Initializing...");
-    await _loadPrefs();
-    print("[ChatController] Prefs loaded ✅");
-    GetorCreateConversations();
-  }
-
+  // Load preferences and initialize chat
   Future<void> _loadPrefs() async {
-    print("[ChatController] Loading SharedPreferences...");
     prefs = await SharedPreferences.getInstance();
-    if (prefs.getString('token') == null) {
-      print("[ChatController] No token found ❌. Redirecting to login...");
-      Get.offAllNamed('/login');
-    } else {
-      print("[ChatController] Token found ✅: ${prefs.getString('token')}");
+
+    // First create or get conversation
+    await GetorCreateConversations();
+
+    // Then get messages only if we have a valid conversation ID
+    if (conversationId != null) {
+      await GetMessages();
     }
+
+    // DO NOT call _handleNavigation() here to prevent redirects
   }
 
-  void GetorCreateConversations() async {
+  Future<void> GetorCreateConversations() async {
     print(
       "[ChatController] Creating or fetching conversation for user id: $chatUserId",
     );
@@ -64,29 +64,169 @@ class ChatController extends GetxController {
           post.statusCode! >= 200 &&
           post.statusCode! < 300) {
         print("[ChatController] Conversation creation successful ✅");
-        ShowSuccessDialog(
-          Get.context!,
-          "Success",
-          post.data['message'] ?? "Conversation created successfully",
-          () {},
-        );
+        conversationId = post.data['conversation']['id'];
       } else {
         print("[ChatController] Conversation creation failed ❌");
-        ShowSuccessDialog(
-          Get.context!,
-          "Error",
-          post.data?['message'] ?? "Failed to create conversation",
-          () {},
-        );
       }
     } catch (e) {
       print("[ChatController] Error during conversation creation ❗ Error: $e");
-      ShowSuccessDialog(
-        Get.context!,
-        "Error",
-        "Something went wrong. Please try again.",
-        () {},
+      if (Get.context != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ShowSuccessDialog(
+            Get.context!,
+            "Error",
+            "Something went wrong creating conversation. Please try again.",
+            () {},
+          );
+        });
+      }
+    }
+  }
+
+  Future<void> GetMessages() async {
+    // Safety check - only proceed if we have a valid conversation ID
+    if (conversationId == null) {
+      print(
+        "[ChatController] Cannot fetch messages: No conversation ID available",
       );
+      isLoading.value = false;
+      return;
+    }
+
+    try {
+      print(
+        "[ChatController] Fetching messages for conversation: $conversationId",
+      );
+
+      var response = await Dioclient().getInstance().get(
+        '/messages/$conversationId',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${prefs.getString('token') ?? ''}',
+          },
+        ),
+      );
+
+      print("[ChatController] Messages response: ${response.data}");
+
+      if (response.statusCode == 200) {
+        if (response.data != null && response.data['messages'] != null) {
+          var messagesList =
+              (response.data['messages'] as List)
+                  .map((message) => Message.fromJson(message))
+                  .toList();
+
+          messages.clear();
+          messages.addAll(messagesList);
+
+          print("[ChatController] Messages fetched: ${messages.length}");
+        } else {
+          messages.clear();
+          print("[ChatController] No messages in response");
+        }
+      } else if (response.statusCode == 403) {
+        // Handle 403 Unauthorized error
+        messages.clear();
+        print("[ChatController] Authorization error fetching messages");
+
+        if (Get.context != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ShowSuccessDialog(
+              Get.context!,
+              "Error",
+              "You are not authorized to view this conversation.",
+              () {},
+            );
+          });
+        }
+      } else {
+        messages.clear();
+        print(
+          "[ChatController] Error fetching messages: ${response.statusCode}",
+        );
+
+        if (Get.context != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ShowSuccessDialog(
+              Get.context!,
+              "Error",
+              "Failed to fetch messages. Please try again.",
+              () {},
+            );
+          });
+        }
+      }
+    } catch (e) {
+      messages.clear();
+      print("[ChatController] Exception fetching messages: $e");
+
+      if (Get.context != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ShowSuccessDialog(
+            Get.context!,
+            "Error",
+            "Something went wrong fetching messages. Please try again.",
+            () {},
+          );
+        });
+      }
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // Method to send a new message
+  Future<void> sendMessage(String content) async {
+    if (conversationId == null) {
+      print("[ChatController] Cannot send message: No conversation ID");
+      return;
+    }
+
+    if (content.trim().isEmpty) {
+      return; // Don't send empty messages
+    }
+
+    try {
+      var response = await Dioclient().getInstance().post(
+        '/messages',
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer ${prefs.getString('token') ?? ''}',
+          },
+        ),
+        data: {'conversation_id': conversationId, 'message': content},
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Refresh messages after sending
+        await GetMessages();
+      } else {
+        print(
+          "[ChatController] Failed to send message: ${response.statusCode}",
+        );
+        if (Get.context != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ShowSuccessDialog(
+              Get.context!,
+              "Error",
+              "Failed to send message. Please try again.",
+              () {},
+            );
+          });
+        }
+      }
+    } catch (e) {
+      print("[ChatController] Error sending message: $e");
+      if (Get.context != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ShowSuccessDialog(
+            Get.context!,
+            "Error",
+            "Something went wrong sending your message. Please try again.",
+            () {},
+          );
+        });
+      }
     }
   }
 
