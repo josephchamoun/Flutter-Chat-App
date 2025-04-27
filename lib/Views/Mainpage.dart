@@ -24,7 +24,10 @@ class Mainpage extends GetView<MainpageController> {
                 title: Text(user.name ?? "No Name"),
                 subtitle: Text(user.email ?? "No Email"),
                 onTap: () {
-                  Get.toNamed('/chat/${user.id}');
+                  Get.toNamed(
+                    '/chat/${user.id}',
+                    arguments: {'userName': user.name, 'userEmail': user.email},
+                  );
                 },
               );
             },

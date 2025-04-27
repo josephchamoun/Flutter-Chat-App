@@ -11,6 +11,7 @@ class ChatController extends GetxController {
   late SharedPreferences prefs;
   int chatUserId = int.tryParse(Get.parameters['id'] ?? '') ?? 0;
   int? conversationId;
+  int? authUserId;
 
   var messages = <Message>[].obs;
   var isLoading = true.obs; // Start with loading true
@@ -24,6 +25,9 @@ class ChatController extends GetxController {
   // Load preferences and initialize chat
   Future<void> _loadPrefs() async {
     prefs = await SharedPreferences.getInstance();
+
+    // Initialize authUserId after prefs is loaded
+    authUserId = prefs.getInt('user_id');
 
     // First create or get conversation
     await GetorCreateConversations();
@@ -188,13 +192,20 @@ class ChatController extends GetxController {
 
     try {
       var response = await Dioclient().getInstance().post(
-        '/messages',
+        '/send-message',
         options: Options(
           headers: {
             'Authorization': 'Bearer ${prefs.getString('token') ?? ''}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
         ),
-        data: {'conversation_id': conversationId, 'message': content},
+        data: {
+          'conversation_id': conversationId,
+          'message': content,
+          'user_id': authUserId,
+          'created_at': DateTime.now().toIso8601String(),
+        },
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {

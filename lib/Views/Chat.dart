@@ -6,13 +6,14 @@ class Chat extends GetView<ChatController> {
   Chat({super.key});
   final receiverId = Get.parameters['id'];
   final TextEditingController messageController = TextEditingController();
+  final String? userName = Get.arguments['userName'];
 
   @override
   Widget build(BuildContext context) {
     // No initialization here - it's now handled in onInit of the controller
 
     return Scaffold(
-      appBar: AppBar(title: Text("Chat with user $receiverId")),
+      appBar: AppBar(title: Text("Chat with $userName")),
       body: Column(
         children: [
           // Messages list - takes most of the screen
