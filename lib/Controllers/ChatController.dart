@@ -6,9 +6,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 
 class ChatController extends GetxController {
   late SharedPreferences prefs;
+  late IO.Socket socket;
+
   int chatUserId = int.tryParse(Get.parameters['id'] ?? '') ?? 0;
   int? conversationId;
   int? authUserId;
@@ -20,6 +23,41 @@ class ChatController extends GetxController {
   void onInit() {
     super.onInit();
     _loadPrefs();
+  }
+
+  void connectSocket() {
+    socket = IO.io(
+      'http://localhost:3000', // Change 'localhost' to your server IP if testing on real phone
+      <String, dynamic>{
+        'transports': ['websocket'], // Use websocket only
+        'autoConnect': false, // We connect manually
+      },
+    );
+
+    socket.connect();
+
+    socket.onConnect((_) {
+      print('[Socket.IO] Connected: ${socket.id}');
+
+      // Join the correct conversation room after connecting
+      if (conversationId != null) {
+        socket.emit('joinConversation', conversationId);
+      }
+    });
+
+    socket.onDisconnect((_) {
+      print('[Socket.IO] Disconnected');
+    });
+
+    socket.on('newMessage', (data) {
+      print('[Socket.IO] New message received: $data');
+
+      // Parse the new message into your Message model
+      Message newMsg = Message.fromJson(data);
+
+      // Add the new message to the existing list
+      messages.add(newMsg);
+    });
   }
 
   // Load preferences and initialize chat
@@ -35,6 +73,7 @@ class ChatController extends GetxController {
     // Then get messages only if we have a valid conversation ID
     if (conversationId != null) {
       await GetMessages();
+      connectSocket(); // Connect to socket after fetching messages
     }
 
     // DO NOT call _handleNavigation() here to prevent redirects
@@ -244,6 +283,8 @@ class ChatController extends GetxController {
   @override
   void onClose() {
     print("[ChatController] onClose called ❌");
+
+    socket.dispose();
     super.onClose();
   }
 }
