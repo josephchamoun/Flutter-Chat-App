@@ -8,10 +8,23 @@ class Chat extends GetView<ChatController> {
   final receiverId = Get.parameters['id'];
   final TextEditingController messageController = TextEditingController();
   final String? userName = Get.arguments['userName'];
+  final ScrollController _scrollController = ScrollController();
 
   @override
   Widget build(BuildContext context) {
-    // No initialization here - it's now handled in onInit of the controller
+    // Listen to messages update to scroll to bottom
+    controller.messages.listen((_) {
+      // Wait for the next frame to ensure the UI updates before scrolling
+      Future.delayed(Duration(milliseconds: 100), () {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
+    });
 
     return Scaffold(
       appBar: AppBar(title: Text("Chat with $userName")),
@@ -26,6 +39,7 @@ class Chat extends GetView<ChatController> {
                 return const Center(child: Text('No messages yet 📭'));
               } else {
                 return ListView.builder(
+                  controller: _scrollController,
                   itemCount: controller.messages.length,
                   itemBuilder: (context, index) {
                     final message = controller.messages[index];
@@ -178,3 +192,18 @@ class Chat extends GetView<ChatController> {
     );
   }
 }
+
+
+
+
+
+
+/*
+Column(
+  children: [
+    Expanded(...), // message list
+    Row(...), // emoji + input + send
+    Obx(...), // emoji picker
+  ],
+)
+*/
