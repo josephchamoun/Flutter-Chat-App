@@ -1,6 +1,7 @@
 import 'package:chatapp/Controllers/ChatController.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 
 class Chat extends GetView<ChatController> {
   Chat({super.key});
@@ -94,6 +95,15 @@ class Chat extends GetView<ChatController> {
             ),
             child: Row(
               children: [
+                // Emoji Button
+                IconButton(
+                  onPressed: () {
+                    FocusScope.of(context).unfocus(); // hide keyboard
+                    controller.showEmojiPicker.value =
+                        !controller.showEmojiPicker.value;
+                  },
+                  icon: const Icon(Icons.emoji_emotions_outlined),
+                ),
                 // Text field
                 Expanded(
                   child: TextField(
@@ -112,6 +122,11 @@ class Chat extends GetView<ChatController> {
                       ),
                     ),
                     textInputAction: TextInputAction.send,
+                    onTap: () {
+                      if (controller.showEmojiPicker.value) {
+                        controller.showEmojiPicker.value = false;
+                      }
+                    },
                     onSubmitted: (value) {
                       if (value.trim().isNotEmpty) {
                         controller.sendMessage(value);
@@ -141,6 +156,23 @@ class Chat extends GetView<ChatController> {
               ],
             ),
           ),
+
+          // Emoji Picker
+          Obx(() {
+            if (controller.showEmojiPicker.value) {
+              return SizedBox(
+                height: 250,
+                child: EmojiPicker(
+                  onEmojiSelected: (category, emoji) {
+                    messageController.text += emoji.emoji;
+                  },
+                  config: Config(columns: 7, emojiSizeMax: 32),
+                ),
+              );
+            } else {
+              return const SizedBox();
+            }
+          }),
         ],
       ),
     );

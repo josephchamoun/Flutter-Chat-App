@@ -11,6 +11,7 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 class ChatController extends GetxController {
   late SharedPreferences prefs;
   late IO.Socket socket;
+  var showEmojiPicker = false.obs;
 
   int chatUserId = int.tryParse(Get.parameters['id'] ?? '') ?? 0;
   int? conversationId;
